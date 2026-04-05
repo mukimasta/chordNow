@@ -37,12 +37,79 @@ app.innerHTML = `
       <p class="hint-line" id="hintLine"></p>
       <p class="voice-line" id="voiceLine">声部：就近连接 + 参考音区（减轻越弹越低）；首和弦默认在较低音区</p>
     </section>
-    <section class="keys-hint">
-      <h2>键盘</h2>
-      <ul>
-        <li><kbd>A</kbd> 与 <kbd>K</kbd> 同为 <strong>I</strong> 级（完全等价）；<kbd>S</kbd>–<kbd>J</kbd>（缺 <kbd>E</kbd>）为 <strong>II – VII</strong> 级</li>
-        <li><kbd>/</kbd> <strong>大七或小七</strong>：调内原为大三则 maj7，原为小三则 m7，vii° 则半减七 ø。要先翻转大小再套七，请<strong>同时按住</strong> <kbd>.</kbd> 与 <kbd>/</kbd>。<kbd>,</kbd> <strong>属七</strong>；仅三和弦时 <kbd>.</kbd> 同根大/小翻转。优先级：<kbd>,</kbd> &gt; <kbd>/</kbd>。</li>
-      </ul>
+    <section class="keys-hint" aria-labelledby="keys-hint-title">
+      <h2 class="keys-hint__title" id="keys-hint-title">键盘说明</h2>
+
+      <div class="keymap-card keymap-card--degrees">
+        <div class="keymap-card__head">
+          <span class="keymap-card__label">级数</span>
+          <p class="keymap-card__lead">
+            与物理键盘主行一致：<kbd class="kbd-inline">A</kbd> <kbd class="kbd-inline">S</kbd> … <kbd class="kbd-inline">J</kbd> <kbd class="kbd-inline">K</kbd>；最左 <kbd class="kbd-inline">A</kbd> 与最右 <kbd class="kbd-inline">K</kbd> 均为 <strong>I</strong>，中间为 <strong>II → VII</strong>。
+          </p>
+        </div>
+        <div class="key-strip" role="presentation">
+          <div class="key-strip__cell key-strip__cell--i">
+            <kbd class="kbd-key">A</kbd>
+            <span class="key-strip__roman">I</span>
+          </div>
+          <div class="key-strip__cell">
+            <kbd class="kbd-key">S</kbd>
+            <span class="key-strip__roman">II</span>
+          </div>
+          <div class="key-strip__cell">
+            <kbd class="kbd-key">D</kbd>
+            <span class="key-strip__roman">III</span>
+          </div>
+          <div class="key-strip__cell">
+            <kbd class="kbd-key">F</kbd>
+            <span class="key-strip__roman">IV</span>
+          </div>
+          <div class="key-strip__cell">
+            <kbd class="kbd-key">G</kbd>
+            <span class="key-strip__roman">V</span>
+          </div>
+          <div class="key-strip__cell">
+            <kbd class="kbd-key">H</kbd>
+            <span class="key-strip__roman">VI</span>
+          </div>
+          <div class="key-strip__cell">
+            <kbd class="kbd-key">J</kbd>
+            <span class="key-strip__roman">VII</span>
+          </div>
+          <div class="key-strip__cell key-strip__cell--i">
+            <kbd class="kbd-key">K</kbd>
+            <span class="key-strip__roman">I</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="keymap-card keymap-card--mods">
+        <div class="keymap-card__head">
+          <span class="keymap-card__label">修饰键</span>
+          <p class="keymap-card__lead">与级数键同时生效；按住级数时再按修饰会立刻重算和弦。</p>
+        </div>
+        <div class="modifier-grid">
+          <div class="modifier-tile">
+            <kbd class="kbd-key kbd-key--wide">,</kbd>
+            <span class="modifier-tile__name">属七</span>
+            <span class="modifier-tile__note">V<sup>7</sup> 等</span>
+          </div>
+          <div class="modifier-tile">
+            <kbd class="kbd-key kbd-key--wide">/</kbd>
+            <span class="modifier-tile__name">大七 / 小七</span>
+            <span class="modifier-tile__note">按调内三和弦性质：大 → maj7，小 → m7；vii° → ø</span>
+          </div>
+          <div class="modifier-tile">
+            <kbd class="kbd-key kbd-key--wide">.</kbd>
+            <span class="modifier-tile__name">同根大 / 小</span>
+            <span class="modifier-tile__note">仅三和弦时翻转；与 <kbd class="kbd-inline">/</kbd> 同按则先翻转再套七度</span>
+          </div>
+        </div>
+        <div class="keymap-priority">
+          <span class="keymap-priority__label">优先级</span>
+          <span class="keymap-priority__value"><kbd class="kbd-inline">,</kbd> 属七 ＞ <kbd class="kbd-inline">/</kbd> 大七/小七</span>
+        </div>
+      </div>
     </section>
   </main>
 `;

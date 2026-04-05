@@ -53,11 +53,13 @@ Vite 6、TypeScript 5、Vitest；无前端框架，纯 DOM + 原生模块。
 可以。本站是纯静态资源，适合托管在 **GitHub Pages**。
 
 1. 在 GitHub 上新建仓库（或推送本仓库），**仓库名**会出现在网址里：`https://<你的用户名>.github.io/<仓库名>/`。
-2. 仓库 **Settings → Pages**：**Build and deployment** 里 **Source** 选 **GitHub Actions**（不要选「Deploy from a branch」的旧方式，除非你自己改流程）。
-3. 把代码推到 **`main`** 或 **`master`** 分支；工作流 **Deploy GitHub Pages**（见 `.github/workflows/deploy-github-pages.yml`）会自动 `npm ci && npm run build` 并把 `dist` 发布上去。
-4. 几分钟后同一 Pages 设置页会显示站点地址；把链接发给朋友即可。
+2. **必须先做**：仓库 **Settings → Pages** → **Build and deployment** → **Source** 选 **GitHub Actions**，保存。若仍是「Deploy from a branch」或未启用 Pages，`deploy-pages` 会报 **404 / Failed to create deployment**（与站点打开后 404 不同，这是 API 创建部署失败）。
+3. 把代码推到 **`main`** 或 **`master`** 分支；工作流会先 **`actions/configure-pages`** 再构建，用输出的 `base_path` 设置 Vite 的 `base`，最后 **`actions/deploy-pages@v5`** 发布 `dist`。
+4. 几分钟后 **Settings → Pages** 会显示站点地址；把链接发给朋友即可。
 
-构建时通过环境变量 **`GITHUB_PAGES_BASE=/<仓库名>/`** 设置 Vite 的 `base`，否则资源路径会错。**若你使用特殊的 `<用户名>.github.io` 仓库作为个人主页**（站点在根路径、没有子路径），需要把该工作流里的 `GITHUB_PAGES_BASE` 改成 `/`，或自行调整 `vite.config.ts` 的 `base`。
+本地模拟子路径构建可执行：`GITHUB_PAGES_BASE=/你的仓库名/ npm run build`（须带首尾斜杠语义，与 CI 一致）。
+
+**若使用 `<用户名>.github.io` 仓库作为个人根站点**（无子路径），`configure-pages` 会给出空 `base_path`，CI 里 `GITHUB_PAGES_BASE` 即为 `/`，一般无需再改 `vite.config.ts`。
 
 **说明**：免费 GitHub Pages 通常要求仓库为**公开**；私有仓库使用 Pages 需符合条件的付费账号。音频仍需浏览器允许（用户点一下页面即可）。
 
