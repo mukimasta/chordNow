@@ -1,0 +1,118 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+  line-height: 1.5;
+  color: #e8e6e3;
+  background: #121418;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+.board {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1rem 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.key-select {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+
+#keySelect {
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #3a3f4a;
+  background: #1c2028;
+  color: inherit;
+}
+
+.display {
+  padding: 1.25rem 1rem;
+  border-radius: 10px;
+  background: #1a1e26;
+  border: 1px solid #2c323c;
+  margin-bottom: 1.75rem;
+}
+
+.chord-line {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.hint-line {
+  margin: 0.6rem 0 0;
+  font-size: 0.9rem;
+  color: #9aa0ab;
+}
+
+.voice-line {
+  margin: 0.45rem 0 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.keys-hint h2 {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #7d8494;
+}
+
+.keys-hint ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.95rem;
+  color: #c4c8d0;
+}
+
+.keys-hint li {
+  margin-bottom: 0.4rem;
+}
+
+kbd {
+  display: inline-block;
+  padding: 0.12rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-family: inherit;
+  background: #252a33;
+  border: 1px solid #3d4450;
+}
