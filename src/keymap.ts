@@ -10,6 +10,65 @@ export const ALL_DEGREE_KEY_CODES: readonly string[] = [
   "Digit8",
 ];
 
+/**
+ * 钢琴一行黑键 `q w r t y`（相对主音的半音偏移，大调 C 白键布局）。
+ * 顺序：1–q–2–w–3–4–r–5–t–6–y–7–8
+ */
+export const ALL_BLACK_KEY_CODES: readonly string[] = [
+  "KeyQ",
+  "KeyW",
+  "KeyR",
+  "KeyT",
+  "KeyY",
+];
+
+/** 黑键相对主音的半音数（与 `ALL_BLACK_KEY_CODES` 同序） */
+const BLACK_KEY_SEMITONE: readonly number[] = [1, 3, 6, 8, 10];
+
+/** 用于标签：`KeyQ` → `q` */
+const BLACK_KEY_LABEL: Record<string, string> = {
+  KeyQ: "q",
+  KeyW: "w",
+  KeyR: "r",
+  KeyT: "t",
+  KeyY: "y",
+};
+
+export function isBlackKeyCode(code: string): boolean {
+  return ALL_BLACK_KEY_CODES.includes(code);
+}
+
+/** 黑键 → 相对主音的半音偏移；非黑键返回 null */
+export function codeToBlackKeySemitone(code: string): number | null {
+  const i = ALL_BLACK_KEY_CODES.indexOf(code);
+  if (i < 0) return null;
+  return BLACK_KEY_SEMITONE[i]!;
+}
+
+export function blackKeyCodeToLabel(code: string): string {
+  return BLACK_KEY_LABEL[code] ?? code;
+}
+
+/**
+ * 多枚黑键同时按住时，取「最近按下」的那一枚。
+ */
+export function getActiveBlackKey(
+  keysDown: ReadonlySet<string>,
+  pressOrder: ReadonlyMap<string, number>,
+): string | null {
+  let bestCode: string | null = null;
+  let bestRank = -1;
+  for (const code of ALL_BLACK_KEY_CODES) {
+    if (!keysDown.has(code)) continue;
+    const r = pressOrder.get(code) ?? 0;
+    if (r > bestRank) {
+      bestRank = r;
+      bestCode = code;
+    }
+  }
+  return bestCode;
+}
+
 export const CODE_COMMA = "Comma";
 export const CODE_PERIOD = "Period";
 export const CODE_SLASH = "Slash";

@@ -14,16 +14,19 @@ import {
   CODE_SHIFT_LEFT,
   CODE_SHIFT_RIGHT,
   CODE_SLASH,
-  codeToDegree,
+  getActiveBlackKey,
   getActiveDegree,
   getInversionFromKeys,
   hasShiftDown,
+  isBlackKeyCode,
   isDegreeCode,
 } from "../keymap";
 
 const keysDown = new Set<string>();
 const degreePressOrder = new Map<string, number>();
 let degreePressSeq = 0;
+const blackKeyPressOrder = new Map<string, number>();
+let blackKeyPressSeq = 0;
 const inversionPressOrder = new Map<string, number>();
 let inversionPressSeq = 0;
 
@@ -61,7 +64,7 @@ function isModifierCode(code: string): boolean {
 }
 
 function shouldHandle(ev: KeyboardEvent): boolean {
-  return isDegreeCode(ev.code) || isModifierCode(ev.code);
+  return isDegreeCode(ev.code) || isBlackKeyCode(ev.code) || isModifierCode(ev.code);
 }
 
 function updateHint(onHint: (text: string) => void): void {
@@ -92,10 +95,31 @@ export function attachKeyboardChordController(
 ): void {
   const { session, onChordLabel, onIdleChordLine, onHint } = options;
 
-  const playDegree = (degree: number): void => {
-    const resolved = session.play(degree, modifiersFromKeys());
-    onChordLabel(resolved.label);
-  };
+  /** 级数优先于黑键；无级数时有黑键则播黑键；否则静音。 */
+  function emitCurrentChord(): void {
+    const deg = getActiveDegree(keysDown, degreePressOrder);
+    if (deg !== null) {
+      const resolved = session.play(deg, modifiersFromKeys());
+      onChordLabel(resolved.label);
+      return;
+    }
+    const bk = getActiveBlackKey(keysDown, blackKeyPressOrder);
+    if (bk !== null) {
+      const resolved = session.playBlackKey(bk, modifiersFromKeys());
+      onChordLabel(resolved.label);
+      return;
+    }
+  }
+
+  function stopIfNoChordKeys(): void {
+    if (
+      getActiveDegree(keysDown, degreePressOrder) === null &&
+      getActiveBlackKey(keysDown, blackKeyPressOrder) === null
+    ) {
+      session.stop();
+      onIdleChordLine();
+    }
+  }
 
   window.addEventListener(
     "keydown",
@@ -105,10 +129,13 @@ export function attachKeyboardChordController(
       ev.preventDefault();
       if (keysDown.has(ev.code)) return;
       keysDown.add(ev.code);
-      const deg = codeToDegree(ev.code);
-      if (deg !== null) {
+      if (isDegreeCode(ev.code)) {
         degreePressSeq += 1;
         degreePressOrder.set(ev.code, degreePressSeq);
+      }
+      if (isBlackKeyCode(ev.code)) {
+        blackKeyPressSeq += 1;
+        blackKeyPressOrder.set(ev.code, blackKeyPressSeq);
       }
       if (ev.code === CODE_KEY_O || ev.code === CODE_KEY_P) {
         inversionPressSeq += 1;
@@ -116,11 +143,15 @@ export function attachKeyboardChordController(
       }
       updateHint(onHint);
 
-      if (deg !== null) {
-        playDegree(deg);
+      if (isDegreeCode(ev.code) || isBlackKeyCode(ev.code)) {
+        emitCurrentChord();
       } else if (isModifierCode(ev.code)) {
-        const held = getActiveDegree(keysDown, degreePressOrder);
-        if (held !== null) playDegree(held);
+        if (
+          getActiveDegree(keysDown, degreePressOrder) !== null ||
+          getActiveBlackKey(keysDown, blackKeyPressOrder) !== null
+        ) {
+          emitCurrentChord();
+        }
       }
     },
     true,
@@ -136,22 +167,24 @@ export function attachKeyboardChordController(
       if (isDegreeCode(ev.code)) {
         degreePressOrder.delete(ev.code);
       }
+      if (isBlackKeyCode(ev.code)) {
+        blackKeyPressOrder.delete(ev.code);
+      }
       if (ev.code === CODE_KEY_O || ev.code === CODE_KEY_P) {
         inversionPressOrder.delete(ev.code);
       }
       updateHint(onHint);
 
-      if (isDegreeCode(ev.code)) {
-        const still = getActiveDegree(keysDown, degreePressOrder);
-        if (still !== null) {
-          playDegree(still);
-        } else {
-          session.stop();
-          onIdleChordLine();
-        }
+      if (isDegreeCode(ev.code) || isBlackKeyCode(ev.code)) {
+        stopIfNoChordKeys();
+        emitCurrentChord();
       } else if (isModifierCode(ev.code)) {
-        const held = getActiveDegree(keysDown, degreePressOrder);
-        if (held !== null) playDegree(held);
+        if (
+          getActiveDegree(keysDown, degreePressOrder) !== null ||
+          getActiveBlackKey(keysDown, blackKeyPressOrder) !== null
+        ) {
+          emitCurrentChord();
+        }
       }
     },
     true,

@@ -90,7 +90,9 @@ body {
 
 /* —— 键盘说明 —— */
 .keys-hint {
-  margin-top: 0.25rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #2e3540;
 }
 
 .keys-hint__title {
@@ -113,6 +115,15 @@ body {
 
 .keymap-card--degrees {
   border-left: 3px solid #5b7fd1;
+}
+
+.keymap-card--piano {
+  border-left: 3px solid #6b8f9e;
+}
+
+.keymap-card--piano .keymap-card__label {
+  background: rgba(107, 143, 158, 0.14);
+  color: #b8ccd4;
 }
 
 .keymap-card--mods {
@@ -184,6 +195,46 @@ body {
   letter-spacing: 0.04em;
   color: #8b9dc9;
   font-variant-numeric: tabular-nums;
+}
+
+/* 钢琴式一行：白键 + 抬高的黑键 */
+.piano-strip {
+  padding: 0.65rem 0.75rem 1.1rem;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.piano-strip__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 0.28rem 0.35rem;
+}
+
+.piano-key {
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.piano-key--white .kbd-key {
+  min-width: 2rem;
+}
+
+.piano-key--black {
+  margin-bottom: 0.55rem;
+}
+
+.piano-key--black .kbd-key--black {
+  min-width: 1.55rem;
+  padding: 0.28rem 0.38rem;
+  font-size: 0.78rem;
+  color: #e4e6ea;
+  background: linear-gradient(180deg, #1a1d24 0%, #0e1014 100%);
+  border-color: #2e3542;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 3px 6px rgba(0, 0, 0, 0.45);
 }
 
 /* 修饰键网格 */
@@ -313,7 +364,7 @@ kbd,
 
 /* —— 琴谱：卡农进行 —— */
 .score-sheet {
-  margin-top: 2rem;
+  margin-top: 0;
   padding-top: 1.5rem;
   border-top: 1px solid #2e3540;
 }

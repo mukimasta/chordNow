@@ -1,4 +1,6 @@
-import type { HarmonyModifiers, ResolvedChord } from "../harmony";
+import type { HarmonyModifiers, PitchClass, ResolvedChord } from "../harmony";
+import { resolveChordAtRoot } from "../harmony";
+import { codeToBlackKeySemitone } from "../keymap";
 import type { AudioSink, ChordResolver, VoicingEngine } from "./contracts";
 
 /**
@@ -36,6 +38,25 @@ export class ChordPlaybackSession {
 
   play(degree: number, modifiers: HarmonyModifiers): ResolvedChord {
     const chord = this.resolver.resolve(this.tonicPc, degree, modifiers);
+    const midis = this.voicing.resolve(this.lastVoicing, chord);
+    this.lastVoicing = midis;
+    void this.sink.ensureRunning().then(() => {
+      this.sink.playMidi(midis);
+    });
+    return chord;
+  }
+
+  /**
+   * 钢琴一行黑键（`KeyQ`…`KeyY`）：根音 = 主音 + 该键相对半音偏移，和声由 {@link resolveChordAtRoot} 解析。
+   */
+  playBlackKey(blackKeyCode: string, modifiers: HarmonyModifiers): ResolvedChord {
+    const off = codeToBlackKeySemitone(blackKeyCode);
+    if (off === null) {
+      throw new RangeError(`not a black key code: ${blackKeyCode}`);
+    }
+    const k = ((this.tonicPc % 12) + 12) % 12;
+    const rootPc = ((k + off) % 12) as PitchClass;
+    const chord = resolveChordAtRoot(k, rootPc, modifiers, off);
     const midis = this.voicing.resolve(this.lastVoicing, chord);
     this.lastVoicing = midis;
     void this.sink.ensureRunning().then(() => {

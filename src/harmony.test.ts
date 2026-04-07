@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { resolveChord, type HarmonyModifiers } from "./harmony";
+import {
+  blackKeyRomanLabel,
+  resolveChord,
+  resolveChordAtRoot,
+  type HarmonyModifiers,
+} from "./harmony";
 
 const base: HarmonyModifiers = {
   shift: false,
@@ -112,5 +117,56 @@ describe("resolveChord", () => {
     const r = resolveChord(C, 1, { ...base, slash: true });
     expect(r.kind).toBe("dominant7");
     expect(r.label).toContain("C7");
+  });
+});
+
+describe("blackKeyRomanLabel", () => {
+  it("maps semitone offsets to dual Roman numerals", () => {
+    expect(blackKeyRomanLabel(1)).toBe("#I / bII");
+    expect(blackKeyRomanLabel(3)).toBe("#II / bIII");
+    expect(blackKeyRomanLabel(6)).toBe("#IV / bV");
+    expect(blackKeyRomanLabel(8)).toBe("#V / bVI");
+    expect(blackKeyRomanLabel(10)).toBe("#VI / bVII");
+  });
+});
+
+describe("resolveChordAtRoot (black keys)", () => {
+  const C = 0;
+
+  it("+1 semitone: Roman #I/bII + C# major", () => {
+    const r = resolveChordAtRoot(C, 1, { ...base }, 1);
+    expect(r.rootPc).toBe(1);
+    expect(r.kind).toBe("majorTriad");
+    expect(r.label).toContain("#I / bII");
+    expect(r.label).toContain("C#");
+  });
+
+  it("+3 semitone (w): #II / bIII + D# major", () => {
+    const r = resolveChordAtRoot(C, 3, { ...base }, 3);
+    expect(r.rootPc).toBe(3);
+    expect(r.kind).toBe("majorTriad");
+    expect(r.label).toContain("#II / bIII");
+    expect(r.label).toContain("D#");
+  });
+
+  it("Shift + / on V root (G) is Gm7", () => {
+    const gPc = 7;
+    const r = resolveChordAtRoot(C, gPc, { ...base, shift: true, slash: true }, 8);
+    expect(r.kind).toBe("minor7");
+    expect(r.label).toContain("#V / bVI");
+    expect(r.label).toContain("Gm7");
+  });
+
+  it("n + / is diminished seventh on chromatic root", () => {
+    const r = resolveChordAtRoot(C, 1, { ...base, dim: true, slash: true }, 1);
+    expect(r.kind).toBe("diminished7");
+    expect(r.label).toContain("dim7");
+  });
+
+  it("/ alone is maj7 on major triad (not V7)", () => {
+    const r = resolveChordAtRoot(C, 1, { ...base, period: true }, 1);
+    expect(r.kind).toBe("major7");
+    expect(r.label).toContain("#I / bII");
+    expect(r.label).toContain("C#maj7");
   });
 });

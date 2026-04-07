@@ -41,6 +41,56 @@ app.innerHTML = `
       <p class="hint-line" id="hintLine"></p>
       <p class="voice-line" id="voiceLine">声部：低音 D2–A3；上层 B3–C5；转位（o / p）仅改最低音，上层就近与开放规则不变</p>
     </section>
+    <section class="score-sheet" aria-labelledby="score-sheet-title">
+      <h2 class="score-sheet__title" id="score-sheet-title">琴谱 · 卡农进行</h2>
+      <p class="score-sheet__lead">
+        帕赫贝尔《卡农》低音固定音型（大调调内）；一音一级，按下列<strong>数字键</strong>顺序弹奏即可跟进行。
+      </p>
+      <div class="canon-progression" role="group" aria-label="卡农进行：级数按键顺序">
+        <div class="canon-step">
+          <kbd class="kbd-key">1</kbd>
+          <span class="canon-roman">I</span>
+        </div>
+        <span class="canon-arrow" aria-hidden="true">→</span>
+        <div class="canon-step">
+          <kbd class="kbd-key">5</kbd>
+          <span class="canon-roman">V</span>
+        </div>
+        <span class="canon-arrow" aria-hidden="true">→</span>
+        <div class="canon-step">
+          <kbd class="kbd-key">6</kbd>
+          <span class="canon-roman">vi</span>
+        </div>
+        <span class="canon-arrow" aria-hidden="true">→</span>
+        <div class="canon-step">
+          <kbd class="kbd-key">3</kbd>
+          <span class="canon-roman">iii</span>
+        </div>
+        <span class="canon-arrow" aria-hidden="true">→</span>
+        <div class="canon-step">
+          <kbd class="kbd-key">4</kbd>
+          <span class="canon-roman">IV</span>
+        </div>
+        <span class="canon-arrow" aria-hidden="true">→</span>
+        <div class="canon-step">
+          <kbd class="kbd-key">1</kbd>
+          <span class="canon-roman">I</span>
+        </div>
+        <span class="canon-arrow" aria-hidden="true">→</span>
+        <div class="canon-step">
+          <kbd class="kbd-key">4</kbd>
+          <span class="canon-roman">IV</span>
+        </div>
+        <span class="canon-arrow" aria-hidden="true">→</span>
+        <div class="canon-step">
+          <kbd class="kbd-key">5</kbd>
+          <span class="canon-roman">V</span>
+        </div>
+      </div>
+      <p class="score-sheet__note">
+        级数序列：<span class="score-sheet__mono">1 → 5 → 6 → 3 → 4 → 1 → 4 → 5</span>（可循环）。换调性后罗马级数不变，音响随调性移动。
+      </p>
+    </section>
     <section class="keys-hint" aria-labelledby="keys-hint-title">
       <h2 class="keys-hint__title" id="keys-hint-title">键盘说明</h2>
 
@@ -83,6 +133,32 @@ app.innerHTML = `
           <div class="key-strip__cell key-strip__cell--i">
             <kbd class="kbd-key">8</kbd>
             <span class="key-strip__roman">I</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="keymap-card keymap-card--piano">
+        <div class="keymap-card__head">
+          <span class="keymap-card__label">钢琴一行</span>
+          <p class="keymap-card__lead">
+            主键盘一行 <strong>1 q 2 w 3 4 r 5 t 6 y 7 8</strong>：数字为白键级数，<kbd class="kbd-inline">q</kbd> <kbd class="kbd-inline">w</kbd> <kbd class="kbd-inline">r</kbd> <kbd class="kbd-inline">t</kbd> <kbd class="kbd-inline">y</kbd> 为黑键根（相对主音 +1、+3、+6、+8、+10 半音）；与数字级数同时按住时<strong>以级数为准</strong>。
+          </p>
+        </div>
+        <div class="piano-strip" role="presentation" aria-label="钢琴式一行键位">
+          <div class="piano-strip__row">
+            <span class="piano-key piano-key--white"><kbd class="kbd-key">1</kbd></span>
+            <span class="piano-key piano-key--black"><kbd class="kbd-key kbd-key--black">q</kbd></span>
+            <span class="piano-key piano-key--white"><kbd class="kbd-key">2</kbd></span>
+            <span class="piano-key piano-key--black"><kbd class="kbd-key kbd-key--black">w</kbd></span>
+            <span class="piano-key piano-key--white"><kbd class="kbd-key">3</kbd></span>
+            <span class="piano-key piano-key--white"><kbd class="kbd-key">4</kbd></span>
+            <span class="piano-key piano-key--black"><kbd class="kbd-key kbd-key--black">r</kbd></span>
+            <span class="piano-key piano-key--white"><kbd class="kbd-key">5</kbd></span>
+            <span class="piano-key piano-key--black"><kbd class="kbd-key kbd-key--black">t</kbd></span>
+            <span class="piano-key piano-key--white"><kbd class="kbd-key">6</kbd></span>
+            <span class="piano-key piano-key--black"><kbd class="kbd-key kbd-key--black">y</kbd></span>
+            <span class="piano-key piano-key--white"><kbd class="kbd-key">7</kbd></span>
+            <span class="piano-key piano-key--white"><kbd class="kbd-key">8</kbd></span>
           </div>
         </div>
       </div>
@@ -154,57 +230,6 @@ app.innerHTML = `
           <span class="keymap-priority__value">详细优先级与组合见 <code class="kbd-inline">docs/KEYBOARD.md</code></span>
         </div>
       </div>
-    </section>
-
-    <section class="score-sheet" aria-labelledby="score-sheet-title">
-      <h2 class="score-sheet__title" id="score-sheet-title">琴谱 · 卡农进行</h2>
-      <p class="score-sheet__lead">
-        帕赫贝尔《卡农》低音固定音型（大调调内）；一音一级，按下列<strong>数字键</strong>顺序弹奏即可跟进行。
-      </p>
-      <div class="canon-progression" role="group" aria-label="卡农进行：级数按键顺序">
-        <div class="canon-step">
-          <kbd class="kbd-key">1</kbd>
-          <span class="canon-roman">I</span>
-        </div>
-        <span class="canon-arrow" aria-hidden="true">→</span>
-        <div class="canon-step">
-          <kbd class="kbd-key">5</kbd>
-          <span class="canon-roman">V</span>
-        </div>
-        <span class="canon-arrow" aria-hidden="true">→</span>
-        <div class="canon-step">
-          <kbd class="kbd-key">6</kbd>
-          <span class="canon-roman">vi</span>
-        </div>
-        <span class="canon-arrow" aria-hidden="true">→</span>
-        <div class="canon-step">
-          <kbd class="kbd-key">3</kbd>
-          <span class="canon-roman">iii</span>
-        </div>
-        <span class="canon-arrow" aria-hidden="true">→</span>
-        <div class="canon-step">
-          <kbd class="kbd-key">4</kbd>
-          <span class="canon-roman">IV</span>
-        </div>
-        <span class="canon-arrow" aria-hidden="true">→</span>
-        <div class="canon-step">
-          <kbd class="kbd-key">1</kbd>
-          <span class="canon-roman">I</span>
-        </div>
-        <span class="canon-arrow" aria-hidden="true">→</span>
-        <div class="canon-step">
-          <kbd class="kbd-key">4</kbd>
-          <span class="canon-roman">IV</span>
-        </div>
-        <span class="canon-arrow" aria-hidden="true">→</span>
-        <div class="canon-step">
-          <kbd class="kbd-key">5</kbd>
-          <span class="canon-roman">V</span>
-        </div>
-      </div>
-      <p class="score-sheet__note">
-        级数序列：<span class="score-sheet__mono">1 → 5 → 6 → 3 → 4 → 1 → 4 → 5</span>（可循环）。换调性后罗马级数不变，音响随调性移动。
-      </p>
     </section>
   </main>
 `;

@@ -4,7 +4,7 @@
 
 ## 未发布
 
-（暂无）
+- 钢琴式一行黑键：`q` `w` `r` `t` `y` 为变音根（相对主音 +1、+3、+6、+8、+10 半音），`harmony.resolveChordAtRoot` + `ChordPlaybackSession#playBlackKey`；和弦标签左侧为双罗马分析（`#I/bII` … `#VI/bVII`）；与数字级数同时按住时以级数为准；页面「钢琴一行」卡片与 `docs/KEYBOARD.md` §4 同步。
 
 ## 0.1.1 — 2026-04-07
 

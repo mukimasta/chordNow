@@ -277,6 +277,130 @@ export function resolveChord(
   return { rootPc, kind, label, inversion: inv };
 }
 
+/**
+ * 无调内级数时，在「大三和弦为默认」的框架上叠七度（与 `resolveChord` 的 `/` 分支不同：此处无 V 属七特例）。
+ */
+function chromaticSeventhFromTriad(eff: ChordKind): ChordKind {
+  if (eff === "diminishedTriad") return "halfDiminished7";
+  if (eff === "majorTriad") return "major7";
+  if (eff === "minorTriad") return "minor7";
+  return "halfDiminished7";
+}
+
+/**
+ * 钢琴黑键根相对主音的半音偏移（1/3/6/8/10）→ 大调中常见的**双罗马**标记（升音级 / 降音级 等价根）。
+ */
+export function blackKeyRomanLabel(semitoneOffsetFromTonic: number): string {
+  const o = (((semitoneOffsetFromTonic % 12) + 12) % 12) as number;
+  switch (o) {
+    case 1:
+      return "#I / bII";
+    case 3:
+      return "#II / bIII";
+    case 6:
+      return "#IV / bV";
+    case 8:
+      return "#V / bVI";
+    case 10:
+      return "#VI / bVII";
+    default:
+      return "变音根";
+  }
+}
+
+/**
+ * 钢琴一行黑键（`q` `w` `r` `t` `y`）：根音为 `rootPc`，默认从大三和弦出发，修饰键优先级与 {@link resolveChord} 对齐；标签左侧为 {@link blackKeyRomanLabel}（如 `#II / bIII`）。
+ */
+export function resolveChordAtRoot(
+  keyPc: number,
+  rootPc: PitchClass,
+  mods: HarmonyModifiers,
+  semitoneOffsetFromTonic: number,
+): ResolvedChord {
+  const rootPcNorm = (((rootPc % 12) + 12) % 12) as PitchClass;
+  const inv = mods.inversion;
+  const diatonicBase: ChordKind = "majorTriad";
+  const eff = effectiveTriadKind(diatonicBase, mods.shift);
+  const prefix = blackKeyRomanLabel(semitoneOffsetFromTonic);
+
+  if (mods.dim && mods.slash) {
+    const kind: ChordKind = "diminished7";
+    const label = `${prefix} — ${chordKindToSymbol(rootPcNorm, kind)}`;
+    return { rootPc: rootPcNorm, kind, label, inversion: inv };
+  }
+
+  if (mods.shift && mods.slash && rootPcNorm === degreeRootPc(keyPc, 5)) {
+    const kind: ChordKind = "minor7";
+    const label = `${prefix} — ${chordKindToSymbol(rootPcNorm, kind)}`;
+    return { rootPc: rootPcNorm, kind, label, inversion: inv };
+  }
+
+  if (mods.dim && mods.period && !mods.slash) {
+    const kind: ChordKind = "diminished7";
+    const label = `${prefix} — ${chordKindToSymbol(rootPcNorm, kind)}`;
+    return { rootPc: rootPcNorm, kind, label, inversion: inv };
+  }
+
+  if (mods.period && mods.digit9) {
+    const base7 = chromaticSeventhFromTriad(eff);
+    const kind = ninthFromSeventh(base7);
+    const label = `${prefix} — ${chordKindToSymbol(rootPcNorm, kind)}`;
+    return { rootPc: rootPcNorm, kind, label, inversion: inv };
+  }
+
+  if (mods.slash) {
+    const kind: ChordKind = "dominant7";
+    const label = `${prefix} — ${chordKindToSymbol(rootPcNorm, kind)}`;
+    return { rootPc: rootPcNorm, kind, label, inversion: inv };
+  }
+
+  if (mods.period) {
+    const kind = chromaticSeventhFromTriad(eff);
+    const label = `${prefix} — ${chordKindToSymbol(rootPcNorm, kind)}`;
+    return { rootPc: rootPcNorm, kind, label, inversion: inv };
+  }
+
+  if (mods.comma) {
+    const kind = sixthFromTriad(eff);
+    const label = `${prefix} — ${chordKindToSymbol(rootPcNorm, kind)}`;
+    return { rootPc: rootPcNorm, kind, label, inversion: inv };
+  }
+
+  if (mods.dim) {
+    const kind: ChordKind = "diminishedTriad";
+    const label = `${prefix} — ${chordKindToSymbol(rootPcNorm, kind)}`;
+    return { rootPc: rootPcNorm, kind, label, inversion: inv };
+  }
+
+  if (mods.aug) {
+    const kind: ChordKind = "augmentedTriad";
+    const label = `${prefix} — ${chordKindToSymbol(rootPcNorm, kind)}`;
+    return { rootPc: rootPcNorm, kind, label, inversion: inv };
+  }
+
+  if (mods.sus4) {
+    const kind: ChordKind = "sus4Triad";
+    const label = `${prefix} — ${chordKindToSymbol(rootPcNorm, kind)}`;
+    return { rootPc: rootPcNorm, kind, label, inversion: inv };
+  }
+
+  if (mods.sus2) {
+    const kind: ChordKind = "sus2Triad";
+    const label = `${prefix} — ${chordKindToSymbol(rootPcNorm, kind)}`;
+    return { rootPc: rootPcNorm, kind, label, inversion: inv };
+  }
+
+  if (mods.digit9) {
+    const kind = add9FromTriad(eff);
+    const label = `${prefix} — ${chordKindToSymbol(rootPcNorm, kind)}`;
+    return { rootPc: rootPcNorm, kind, label, inversion: inv };
+  }
+
+  const kind = eff;
+  const label = `${prefix} — ${chordKindToSymbol(rootPcNorm, kind)}`;
+  return { rootPc: rootPcNorm, kind, label, inversion: inv };
+}
+
 /** 12 major keys: value = tonic pitch class */
 export const MAJOR_KEYS: { label: string; tonicPc: PitchClass }[] = [
   { label: "C", tonicPc: 0 },
