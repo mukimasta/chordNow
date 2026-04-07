@@ -4,17 +4,18 @@
 
 ## 未发布
 
-- 钢琴式一行黑键：`q` `w` `r` `t` `y` 为变音根（相对主音 +1、+3、+6、+8、+10 半音），`harmony.resolveChordAtRoot` + `ChordPlaybackSession#playBlackKey`；和弦标签左侧为双罗马分析（`#I/bII` … `#VI/bVII`）；与数字级数同时按住时以级数为准；页面「钢琴一行」卡片与 `docs/KEYBOARD.md` §4 同步。
+（暂无）
 
 ## 0.1.1 — 2026-04-07
 
 - 产品名改为 **ChordNow**（`package.json` 包名 `chordnow`；页面标题与 README 同步）。
 - 键盘与和声：`Shift` 大小转换；**物理 `.`↔`/` 互换**：`.` 为属七（含 `n`+`.` 减七、`Shift`+V+`.` 小七），`/` 为调内七和弦；`,` 六和弦；`n`/`m` 减/增三和弦；`9` add9；`'`/`;` sus4/sus2；`o`/`p` 转位（声部仅改低音）。扩展 `ChordKind` 与 `pitches` / `rootUpperResolve`；界面修饰键卡片与提示同步。
+- **钢琴一行黑键** `q` `w` `r` `t` `y`：相对主音 +1、+3、+6、+8、+10 半音的变音根，`harmony.resolveChordAtRoot`、`ChordPlaybackSession#playBlackKey`；和弦标签左侧为双罗马分析（`#I / bII` … `#VI / bVII`，`harmony.blackKeyRomanLabel`）；与数字级数同时按住时以级数为准；页面「钢琴一行」卡片与 `docs/KEYBOARD.md` §4、§5 同步。
 - 文档：产品设计见 `docs/KEYBOARD.md`。
 - 新增「纯正弦波」音色（`sine`）：单 `sine` 振荡器，增益略高于三角以补偿听感响度。
 - 新增「合成钢琴」音色（`piano`）：五路正弦分音、轻微非谐和、每音音头包络 + 随 MIDI 抬截止的低通，仍为 Web Audio 合成无采样；默认音色改为合成钢琴。
 - 页头增加「音色」下拉框；`timbres.ts` 定义多种音色；`ChordVoice#setTimbre` 切换，释音时断开滤波等子节点。
-- 页面底部增加「琴谱 · 卡农进行」：帕赫贝尔卡农低音级数 **I–V–vi–iii–IV–I–IV–V**，用数字键顺序标记。
+- 「琴谱 · 卡农进行」：帕赫贝尔卡农低音级数 **I–V–vi–iii–IV–I–IV–V**，用数字键顺序标记；布局上置于**键盘说明**区块**上方**。
 
 ## 0.1.0 — 2026-04-07
 
