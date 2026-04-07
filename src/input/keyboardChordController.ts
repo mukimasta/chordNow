@@ -3,29 +3,60 @@ import type { HarmonyModifiers } from "../harmony";
 import type { ChordPlaybackSession } from "../core/session";
 import {
   CODE_COMMA,
+  CODE_DIGIT9,
+  CODE_KEY_M,
+  CODE_KEY_N,
+  CODE_KEY_O,
+  CODE_KEY_P,
   CODE_PERIOD,
+  CODE_QUOTE,
+  CODE_SEMICOLON,
+  CODE_SHIFT_LEFT,
+  CODE_SHIFT_RIGHT,
   CODE_SLASH,
   codeToDegree,
   getActiveDegree,
+  getInversionFromKeys,
+  hasShiftDown,
   isDegreeCode,
 } from "../keymap";
 
 const keysDown = new Set<string>();
-/** 级数键 KeyCode → 按下序号，越大表示越晚按下 */
 const degreePressOrder = new Map<string, number>();
 let degreePressSeq = 0;
+const inversionPressOrder = new Map<string, number>();
+let inversionPressSeq = 0;
 
+/** 物理 `.` ↔ `/` 与逻辑 `slash`（属七）↔ `period`（调内七）交叉映射 */
 function modifiersFromKeys(): HarmonyModifiers {
   return {
-    quote: keysDown.has(CODE_COMMA),
-    semicolon: keysDown.has(CODE_PERIOD),
-    slash: keysDown.has(CODE_SLASH),
+    shift: hasShiftDown(keysDown),
+    period: keysDown.has(CODE_SLASH),
+    slash: keysDown.has(CODE_PERIOD),
+    comma: keysDown.has(CODE_COMMA),
+    digit9: keysDown.has(CODE_DIGIT9),
+    sus4: keysDown.has(CODE_QUOTE),
+    sus2: keysDown.has(CODE_SEMICOLON),
+    dim: keysDown.has(CODE_KEY_N),
+    aug: keysDown.has(CODE_KEY_M),
+    inversion: getInversionFromKeys(keysDown, inversionPressOrder),
   };
 }
 
 function isModifierCode(code: string): boolean {
   return (
-    code === CODE_COMMA || code === CODE_PERIOD || code === CODE_SLASH
+    code === CODE_COMMA ||
+    code === CODE_PERIOD ||
+    code === CODE_SLASH ||
+    code === CODE_QUOTE ||
+    code === CODE_SEMICOLON ||
+    code === CODE_DIGIT9 ||
+    code === CODE_KEY_N ||
+    code === CODE_KEY_M ||
+    code === CODE_KEY_O ||
+    code === CODE_KEY_P ||
+    code === CODE_SHIFT_LEFT ||
+    code === CODE_SHIFT_RIGHT
   );
 }
 
@@ -35,9 +66,17 @@ function shouldHandle(ev: KeyboardEvent): boolean {
 
 function updateHint(onHint: (text: string) => void): void {
   const parts: string[] = [];
-  if (keysDown.has(CODE_COMMA)) parts.push(", 属七");
-  if (keysDown.has(CODE_SLASH)) parts.push("/ 大七或小七(看调内)");
-  if (keysDown.has(CODE_PERIOD)) parts.push(". 大小翻转");
+  if (hasShiftDown(keysDown)) parts.push("Shift 大小");
+  if (keysDown.has(CODE_PERIOD)) parts.push(". 属七");
+  if (keysDown.has(CODE_SLASH)) parts.push("/ 调内七");
+  if (keysDown.has(CODE_COMMA)) parts.push(", 六和弦");
+  if (keysDown.has(CODE_DIGIT9)) parts.push("9 add9");
+  if (keysDown.has(CODE_QUOTE)) parts.push("' sus4");
+  if (keysDown.has(CODE_SEMICOLON)) parts.push("; sus2");
+  if (keysDown.has(CODE_KEY_N)) parts.push("n 减");
+  if (keysDown.has(CODE_KEY_M)) parts.push("m 增");
+  if (keysDown.has(CODE_KEY_O)) parts.push("o 三音低音");
+  if (keysDown.has(CODE_KEY_P)) parts.push("p 五音低音");
   onHint(parts.length ? parts.join(" · ") : "（无修饰）");
 }
 
@@ -48,10 +87,6 @@ export interface KeyboardChordControllerOptions {
   onHint: (text: string) => void;
 }
 
-/**
- * 键盘 → 级数/修饰 → {@link ChordPlaybackSession}。
- * 将来可并列接入 MIDI、触屏等「输入适配器」，共用同一会话。
- */
 export function attachKeyboardChordController(
   options: KeyboardChordControllerOptions,
 ): void {
@@ -75,6 +110,10 @@ export function attachKeyboardChordController(
         degreePressSeq += 1;
         degreePressOrder.set(ev.code, degreePressSeq);
       }
+      if (ev.code === CODE_KEY_O || ev.code === CODE_KEY_P) {
+        inversionPressSeq += 1;
+        inversionPressOrder.set(ev.code, inversionPressSeq);
+      }
       updateHint(onHint);
 
       if (deg !== null) {
@@ -96,6 +135,9 @@ export function attachKeyboardChordController(
       keysDown.delete(ev.code);
       if (isDegreeCode(ev.code)) {
         degreePressOrder.delete(ev.code);
+      }
+      if (ev.code === CODE_KEY_O || ev.code === CODE_KEY_P) {
+        inversionPressOrder.delete(ev.code);
       }
       updateHint(onHint);
 

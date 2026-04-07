@@ -10,12 +10,39 @@ export const ALL_DEGREE_KEY_CODES: readonly string[] = [
   "Digit8",
 ];
 
-/** `,` 键：属七（与乐理里 `quote` 对应） */
 export const CODE_COMMA = "Comma";
-/** `.` 键：同根大/小翻转（与乐理里 `semicolon` 对应） */
 export const CODE_PERIOD = "Period";
-/** `/` 大七/小七（依调内大/小） */
 export const CODE_SLASH = "Slash";
+export const CODE_QUOTE = "Quote";
+export const CODE_SEMICOLON = "Semicolon";
+export const CODE_DIGIT9 = "Digit9";
+export const CODE_KEY_N = "KeyN";
+export const CODE_KEY_M = "KeyM";
+export const CODE_KEY_O = "KeyO";
+export const CODE_KEY_P = "KeyP";
+export const CODE_SHIFT_LEFT = "ShiftLeft";
+export const CODE_SHIFT_RIGHT = "ShiftRight";
+
+export function hasShiftDown(keysDown: ReadonlySet<string>): boolean {
+  return keysDown.has(CODE_SHIFT_LEFT) || keysDown.has(CODE_SHIFT_RIGHT);
+}
+
+/**
+ * `o`→第一转位（三音在低音），`p`→第二转位（五音在低音）；同时按住时后按者优先。
+ */
+export function getInversionFromKeys(
+  keysDown: ReadonlySet<string>,
+  pressOrder: ReadonlyMap<string, number>,
+): 0 | 1 | 2 {
+  const o = keysDown.has(CODE_KEY_O);
+  const p = keysDown.has(CODE_KEY_P);
+  if (!o && !p) return 0;
+  if (o && !p) return 1;
+  if (!o && p) return 2;
+  const rO = pressOrder.get(CODE_KEY_O) ?? 0;
+  const rP = pressOrder.get(CODE_KEY_P) ?? 0;
+  return rP >= rO ? 2 : 1;
+}
 
 export function codeToDegree(code: string): number | null {
   switch (code) {
@@ -43,7 +70,6 @@ export function isDegreeCode(code: string): boolean {
   return codeToDegree(code) !== null;
 }
 
-/** If any degree key is held, return its degree 1–7（按 ALL 列表顺序取第一个按住的键） */
 export function getHeldDegree(keysDown: ReadonlySet<string>): number | null {
   for (const code of ALL_DEGREE_KEY_CODES) {
     if (keysDown.has(code)) {

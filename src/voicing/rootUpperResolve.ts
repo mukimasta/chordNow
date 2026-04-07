@@ -16,11 +16,8 @@ export const DEFAULT_ROOT_UPPER_REGISTER: RootUpperRegisterConfig = {
 };
 
 export interface RootUpperOpenWeights {
-  /** 根音相对 bass 区间中心的平方惩罚权重（不参与上一和弦） */
   bassRegisterWeight: number;
-  /** 上层整体相对 upper 区间中心的平方惩罚 */
   upperRegisterWeight: number;
-  /** 越大越倾向拉大上层 span；从代价中减去 `openSpanWeight * span` */
   openSpanWeight: number;
 }
 
@@ -38,6 +35,16 @@ function chordIntervalsFromRoot(kind: ChordKind): readonly number[] {
       return [0, 3, 7];
     case "diminishedTriad":
       return [0, 3, 6];
+    case "augmentedTriad":
+      return [0, 4, 8];
+    case "sus2Triad":
+      return [0, 2, 7];
+    case "sus4Triad":
+      return [0, 5, 7];
+    case "major6":
+      return [0, 4, 7, 9];
+    case "minor6":
+      return [0, 3, 7, 9];
     case "dominant7":
       return [0, 4, 7, 10];
     case "major7":
@@ -46,6 +53,20 @@ function chordIntervalsFromRoot(kind: ChordKind): readonly number[] {
       return [0, 3, 7, 10];
     case "halfDiminished7":
       return [0, 3, 6, 10];
+    case "diminished7":
+      return [0, 3, 6, 9];
+    case "major9":
+      return [0, 4, 7, 11, 14];
+    case "minor9":
+      return [0, 3, 7, 10, 14];
+    case "dominant9":
+      return [0, 4, 7, 10, 14];
+    case "majorAdd9":
+      return [0, 4, 7, 14];
+    case "minorAdd9":
+      return [0, 3, 7, 14];
+    case "diminishedAdd9":
+      return [0, 3, 6, 14];
   }
 }
 
@@ -96,7 +117,7 @@ function upperRegisterPenalty(
   return (weight * s) / upper.length;
 }
 
-/** 上一完整和弦 MIDI → 上层（不含最低音；三和弦为 3 个上层音，七和弦为 3 个） */
+/** 上一完整和弦 MIDI → 上层（不含最低音） */
 export function extractUpperFromChord(midis: number[] | null): number[] | null {
   if (!midis || midis.length < 2) return null;
   const sorted = [...midis].sort((a, b) => a - b);
@@ -104,33 +125,50 @@ export function extractUpperFromChord(midis: number[] | null): number[] | null {
 }
 
 /**
- * 根音仅在注册表内优化（不跟上一和弦根音做就近），上层在区间内枚举：
- * 跨度 ≤ upperMaxSpan、上层音高于根音；目标 = 上层就近 + 上层开放（偏大 span）+ 音区软惩罚。
+ * 给定根音级数与转位，拆出低音 pitch class 与上层各音 pitch class（原位序下标旋转）。
+ */
+function bassAndUpperPcs(
+  rootPc: number,
+  kind: ChordKind,
+  inversion: 0 | 1 | 2,
+): { bassPc: number; upperPcs: number[] } {
+  const intervals = chordIntervalsFromRoot(kind);
+  const rootP = normalizePc(rootPc);
+  const ordered = intervals.map((s) => normalizePc(rootP + s));
+  const n = ordered.length;
+  const inv = Math.min(inversion, n - 1);
+  const bassPc = ordered[inv]!;
+  const restIdx = [...Array(n).keys()].filter((i) => i !== inv);
+  if (n === 3) {
+    const others = restIdx.map((i) => ordered[i]!);
+    return { bassPc, upperPcs: [others[0]!, others[1]!, bassPc] };
+  }
+  return { bassPc, upperPcs: restIdx.map((i) => ordered[i]!) };
+}
+
+/**
+ * 根音仅在注册表内优化（不跟上一和弦根音做就近），上层在区间内枚举；
+ * 转位只改低音 pitch class，上层就近与开放规则不变。
  */
 export function resolveRootUpperOpen(
   prevMidis: number[] | null,
   rootPc: number,
   kind: ChordKind,
+  inversion: 0 | 1 | 2 = 0,
   reg: RootUpperRegisterConfig = DEFAULT_ROOT_UPPER_REGISTER,
   weights: RootUpperOpenWeights = DEFAULT_ROOT_UPPER_WEIGHTS,
 ): number[] {
-  const intervals = chordIntervalsFromRoot(kind);
-  const rootP = normalizePc(rootPc);
-  /** 三和弦：上层为根+三+五（根在 bass 再于上层重复一次）；七和弦：三+五+七 */
-  const upperPcs =
-    intervals.length === 3
-      ? intervals.map((s) => normalizePc(rootP + s))
-      : intervals.slice(1).map((s) => normalizePc(rootP + s));
+  const { bassPc, upperPcs } = bassAndUpperPcs(rootPc, kind, inversion);
 
   const bassCenter = (reg.bass.minMidi + reg.bass.maxMidi) / 2;
 
   const bassCandidates = midiCandidatesForPc(
-    rootP,
+    bassPc,
     reg.bass.minMidi,
     reg.bass.maxMidi,
   );
   if (bassCandidates.length === 0) {
-    return chordToMidi(rootPc, kind);
+    return chordToMidi(rootPc, kind, inversion);
   }
 
   const prevUpper = extractUpperFromChord(prevMidis);
@@ -139,7 +177,7 @@ export function resolveRootUpperOpen(
     midiCandidatesForPc(pc, reg.upper.minMidi, reg.upper.maxMidi),
   );
   if (optionArrays.some((a) => a.length === 0)) {
-    return chordToMidi(rootPc, kind);
+    return chordToMidi(rootPc, kind, inversion);
   }
 
   let best: number[] | null = null;
@@ -179,5 +217,5 @@ export function resolveRootUpperOpen(
     }
   }
 
-  return best ?? chordToMidi(rootPc, kind);
+  return best ?? chordToMidi(rootPc, kind, inversion);
 }

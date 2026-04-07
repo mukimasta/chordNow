@@ -5,6 +5,7 @@ import { MAJOR_KEYS } from "./harmony";
 import { majorDiatonicResolver } from "./resolvers/majorDiatonic";
 import { nearestVoicingEngine } from "./voicing/nearestVoicing";
 import { rootUpperOpenVoicingEngine } from "./voicing/rootUpperOpenVoicing";
+import { isTimbreId, TIMBRE_OPTIONS } from "./timbres";
 import { ChordVoice } from "./voice";
 
 const resolverRegistry = new Registry<ChordResolver>();
@@ -25,16 +26,20 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
   <main class="board">
     <header class="header">
-      <h1>ChordBoard</h1>
+      <h1>ChordNow</h1>
       <label class="key-select">
         调性（大调）
-        <select id="keySelect" aria-label="调性"></select>
+        <select id="keySelect" class="chrome-select" aria-label="调性"></select>
+      </label>
+      <label class="key-select">
+        音色
+        <select id="timbreSelect" class="chrome-select" aria-label="音色"></select>
       </label>
     </header>
     <section class="display" aria-live="polite">
       <p class="chord-line" id="chordLine">—</p>
       <p class="hint-line" id="hintLine"></p>
-      <p class="voice-line" id="voiceLine">声部：根音 D2–A3；上层 B3–C5（三和弦为根+三+五，根在上层重复），跨度≤12；上层开放 + 就近；根音不做声部连接</p>
+      <p class="voice-line" id="voiceLine">声部：低音 D2–A3；上层 B3–C5；转位（o / p）仅改最低音，上层就近与开放规则不变</p>
     </section>
     <section class="keys-hint" aria-labelledby="keys-hint-title">
       <h2 class="keys-hint__title" id="keys-hint-title">键盘说明</h2>
@@ -89,26 +94,117 @@ app.innerHTML = `
         </div>
         <div class="modifier-grid">
           <div class="modifier-tile">
-            <kbd class="kbd-key kbd-key--wide">,</kbd>
-            <span class="modifier-tile__name">属七</span>
-            <span class="modifier-tile__note">V<sup>7</sup> 等</span>
-          </div>
-          <div class="modifier-tile">
-            <kbd class="kbd-key kbd-key--wide">/</kbd>
-            <span class="modifier-tile__name">大七 / 小七</span>
-            <span class="modifier-tile__note">按调内三和弦性质：大 → maj7，小 → m7；vii° → ø</span>
+            <kbd class="kbd-key kbd-key--wide">⇧</kbd>
+            <span class="modifier-tile__name">大小和弦</span>
+            <span class="modifier-tile__note">同根大三 ↔ 小三</span>
           </div>
           <div class="modifier-tile">
             <kbd class="kbd-key kbd-key--wide">.</kbd>
-            <span class="modifier-tile__name">同根大 / 小</span>
-            <span class="modifier-tile__note">仅三和弦时翻转；与 <kbd class="kbd-inline">/</kbd> 同按则先翻转再套七度</span>
+            <span class="modifier-tile__name">属七</span>
+            <span class="modifier-tile__note">大小七；与 <kbd class="kbd-inline">Shift</kbd> 在 V 上→小七；与 <kbd class="kbd-inline">n</kbd>→减七</span>
+          </div>
+          <div class="modifier-tile">
+            <kbd class="kbd-key kbd-key--wide">,</kbd>
+            <span class="modifier-tile__name">六和弦</span>
+            <span class="modifier-tile__note">大六 / 小六</span>
+          </div>
+          <div class="modifier-tile">
+            <kbd class="kbd-key kbd-key--wide">/</kbd>
+            <span class="modifier-tile__name">七和弦</span>
+            <span class="modifier-tile__note">调内 maj7 / m7 / V 属七 / vii°→ø</span>
+          </div>
+          <div class="modifier-tile">
+            <kbd class="kbd-key kbd-key--wide">n</kbd>
+            <span class="modifier-tile__name">减和弦</span>
+            <span class="modifier-tile__note">减三和弦；与 <kbd class="kbd-inline">.</kbd> 为减七</span>
+          </div>
+          <div class="modifier-tile">
+            <kbd class="kbd-key kbd-key--wide">m</kbd>
+            <span class="modifier-tile__name">增和弦</span>
+            <span class="modifier-tile__note">增三和弦</span>
+          </div>
+          <div class="modifier-tile">
+            <kbd class="kbd-key kbd-key--wide">9</kbd>
+            <span class="modifier-tile__name">add9</span>
+            <span class="modifier-tile__note">与 <kbd class="kbd-inline">/</kbd> 同按为九和弦</span>
+          </div>
+          <div class="modifier-tile">
+            <kbd class="kbd-key kbd-key--wide">'</kbd>
+            <span class="modifier-tile__name">sus4</span>
+            <span class="modifier-tile__note">挂四</span>
+          </div>
+          <div class="modifier-tile">
+            <kbd class="kbd-key kbd-key--wide">;</kbd>
+            <span class="modifier-tile__name">sus2</span>
+            <span class="modifier-tile__note">挂二</span>
+          </div>
+          <div class="modifier-tile">
+            <kbd class="kbd-key kbd-key--wide">o</kbd>
+            <span class="modifier-tile__name">第一转位</span>
+            <span class="modifier-tile__note">三音在低音</span>
+          </div>
+          <div class="modifier-tile">
+            <kbd class="kbd-key kbd-key--wide">p</kbd>
+            <span class="modifier-tile__name">第二转位</span>
+            <span class="modifier-tile__note">五音在低音</span>
           </div>
         </div>
         <div class="keymap-priority">
-          <span class="keymap-priority__label">优先级</span>
-          <span class="keymap-priority__value"><kbd class="kbd-inline">,</kbd> 属七 ＞ <kbd class="kbd-inline">/</kbd> 大七/小七</span>
+          <span class="keymap-priority__label">说明</span>
+          <span class="keymap-priority__value">详细优先级与组合见 <code class="kbd-inline">docs/KEYBOARD.md</code></span>
         </div>
       </div>
+    </section>
+
+    <section class="score-sheet" aria-labelledby="score-sheet-title">
+      <h2 class="score-sheet__title" id="score-sheet-title">琴谱 · 卡农进行</h2>
+      <p class="score-sheet__lead">
+        帕赫贝尔《卡农》低音固定音型（大调调内）；一音一级，按下列<strong>数字键</strong>顺序弹奏即可跟进行。
+      </p>
+      <div class="canon-progression" role="group" aria-label="卡农进行：级数按键顺序">
+        <div class="canon-step">
+          <kbd class="kbd-key">1</kbd>
+          <span class="canon-roman">I</span>
+        </div>
+        <span class="canon-arrow" aria-hidden="true">→</span>
+        <div class="canon-step">
+          <kbd class="kbd-key">5</kbd>
+          <span class="canon-roman">V</span>
+        </div>
+        <span class="canon-arrow" aria-hidden="true">→</span>
+        <div class="canon-step">
+          <kbd class="kbd-key">6</kbd>
+          <span class="canon-roman">vi</span>
+        </div>
+        <span class="canon-arrow" aria-hidden="true">→</span>
+        <div class="canon-step">
+          <kbd class="kbd-key">3</kbd>
+          <span class="canon-roman">iii</span>
+        </div>
+        <span class="canon-arrow" aria-hidden="true">→</span>
+        <div class="canon-step">
+          <kbd class="kbd-key">4</kbd>
+          <span class="canon-roman">IV</span>
+        </div>
+        <span class="canon-arrow" aria-hidden="true">→</span>
+        <div class="canon-step">
+          <kbd class="kbd-key">1</kbd>
+          <span class="canon-roman">I</span>
+        </div>
+        <span class="canon-arrow" aria-hidden="true">→</span>
+        <div class="canon-step">
+          <kbd class="kbd-key">4</kbd>
+          <span class="canon-roman">IV</span>
+        </div>
+        <span class="canon-arrow" aria-hidden="true">→</span>
+        <div class="canon-step">
+          <kbd class="kbd-key">5</kbd>
+          <span class="canon-roman">V</span>
+        </div>
+      </div>
+      <p class="score-sheet__note">
+        级数序列：<span class="score-sheet__mono">1 → 5 → 6 → 3 → 4 → 1 → 4 → 5</span>（可循环）。换调性后罗马级数不变，音响随调性移动。
+      </p>
     </section>
   </main>
 `;
@@ -123,6 +219,21 @@ for (const k of MAJOR_KEYS) {
 keySelect.value = "0";
 keySelect.addEventListener("change", () => {
   session.setTonic(Number(keySelect.value));
+  document.body.focus();
+});
+
+const timbreSelect = document.querySelector<HTMLSelectElement>("#timbreSelect")!;
+for (const opt of TIMBRE_OPTIONS) {
+  const o = document.createElement("option");
+  o.value = opt.id;
+  o.textContent = opt.label;
+  o.title = opt.description;
+  timbreSelect.appendChild(o);
+}
+timbreSelect.value = voice.getTimbre();
+timbreSelect.addEventListener("change", () => {
+  const v = timbreSelect.value;
+  if (isTimbreId(v)) voice.setTimbre(v);
   document.body.focus();
 });
 

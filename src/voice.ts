@@ -1,9 +1,10 @@
 /**
  * Polyphonic chord voice: one oscillator per note, shared bus to destination.
- * 重触发时交叉淡化 + 总线压缩/余量，减轻并联与削波导致的爆音。
+ * 重触发时交叉淡化 + 总线压缩/余量；支持多种音色（见 {@link TimbreId}）。
  */
 
 import type { AudioSink } from "./core/contracts";
+import type { TimbreId } from "./timbres";
 
 /** 交叉淡化加长，重叠期更平滑 */
 const CROSSFADE_S = 0.072;
@@ -12,27 +13,38 @@ const FIRST_ATTACK_S = 0.024;
 const RELEASE_S = 0.062;
 /** 和弦主增益峰值（原 0.22，留余量给多音叠加） */
 const CHORD_MASTER_PEAK = 0.13;
-/** 单振荡器增益（原 0.9，与主增益一起降） */
+/** 单音层基准增益（三角单源） */
 const PER_OSC_GAIN = 0.58;
 /** 掐断旧层时极短淡出，避免硬切咔哒 */
 const HARD_STOP_FADE_S = 0.012;
 
+type VoiceSlot = {
+  master: GainNode;
+  oscillators: OscillatorNode[];
+  /** 滤波、中间增益等非声源节点，释音时需 disconnect */
+  extraNodes: AudioNode[];
+};
+
 export class ChordVoice implements AudioSink {
   private ctx: AudioContext | null = null;
-  private current: {
-    master: GainNode;
-    oscillators: OscillatorNode[];
-  } | null = null;
-  private fadingOut: {
-    master: GainNode;
-    oscillators: OscillatorNode[];
-  } | null = null;
+  private current: VoiceSlot | null = null;
+  private fadingOut: VoiceSlot | null = null;
   private fadingOutCleanup: ReturnType<typeof setTimeout> | null = null;
   private mixOut: GainNode | null = null;
+  private timbre: TimbreId = "piano";
 
   private getContext(): AudioContext {
     if (!this.ctx) this.ctx = new AudioContext();
     return this.ctx;
+  }
+
+  /** 切换音色；下次 `playMidi` 起生效，不改变已发声层。 */
+  setTimbre(id: TimbreId): void {
+    this.timbre = id;
+  }
+
+  getTimbre(): TimbreId {
+    return this.timbre;
   }
 
   /**
@@ -60,10 +72,7 @@ export class ChordVoice implements AudioSink {
     return this.mixOut;
   }
 
-  private muteAndDisconnect(slot: {
-    master: GainNode;
-    oscillators: OscillatorNode[];
-  }): void {
+  private muteAndDisconnect(slot: VoiceSlot): void {
     const ctx = this.getContext();
     const t = ctx.currentTime;
     slot.master.gain.cancelScheduledValues(t);
@@ -71,7 +80,7 @@ export class ChordVoice implements AudioSink {
     slot.master.gain.setValueAtTime(v, t);
     slot.master.gain.linearRampToValueAtTime(0, t + HARD_STOP_FADE_S);
 
-    const { oscillators } = slot;
+    const { oscillators, extraNodes } = slot;
     const m = slot.master;
     const stopAt = t + HARD_STOP_FADE_S + 0.02;
     for (const o of oscillators) {
@@ -85,6 +94,13 @@ export class ChordVoice implements AudioSink {
       for (const o of oscillators) {
         try {
           o.disconnect();
+        } catch {
+          /* ignore */
+        }
+      }
+      for (const n of extraNodes) {
+        try {
+          n.disconnect();
         } catch {
           /* ignore */
         }
@@ -144,7 +160,136 @@ export class ChordVoice implements AudioSink {
           /* ignore */
         }
       }
+      for (const n of slot.extraNodes) {
+        try {
+          n.disconnect();
+        } catch {
+          /* ignore */
+        }
+      }
     }, (RELEASE_S + 0.05) * 1000);
+  }
+
+  /**
+   * 按当前音色把单音接到 `target`（和弦总增益），并登记振荡器与需断开的节点。
+   */
+  private addNoteForTimbre(
+    ctx: AudioContext,
+    t: number,
+    midi: number,
+    target: GainNode,
+    oscillators: OscillatorNode[],
+    extraNodes: AudioNode[],
+  ): void {
+    const freq = 440 * Math.pow(2, (midi - 69) / 12);
+
+    switch (this.timbre) {
+      case "triangle": {
+        const o = ctx.createOscillator();
+        o.type = "triangle";
+        o.frequency.setValueAtTime(freq, t);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(PER_OSC_GAIN, t);
+        o.connect(g);
+        g.connect(target);
+        o.start(t);
+        oscillators.push(o);
+        extraNodes.push(g);
+        break;
+      }
+      case "sine": {
+        const o = ctx.createOscillator();
+        o.type = "sine";
+        o.frequency.setValueAtTime(freq, t);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(PER_OSC_GAIN * 1.06, t);
+        o.connect(g);
+        g.connect(target);
+        o.start(t);
+        oscillators.push(o);
+        extraNodes.push(g);
+        break;
+      }
+      case "warm": {
+        const gSum = PER_OSC_GAIN * 0.92;
+        const oTri = ctx.createOscillator();
+        oTri.type = "triangle";
+        oTri.frequency.setValueAtTime(freq, t);
+        const g1 = ctx.createGain();
+        g1.gain.setValueAtTime(gSum * 0.52, t);
+        oTri.connect(g1);
+        g1.connect(target);
+
+        const oSin = ctx.createOscillator();
+        oSin.type = "sine";
+        oSin.frequency.setValueAtTime(freq, t);
+        oSin.detune.setValueAtTime(3.5, t);
+        const g2 = ctx.createGain();
+        g2.gain.setValueAtTime(gSum * 0.48, t);
+        oSin.connect(g2);
+        g2.connect(target);
+
+        oTri.start(t);
+        oSin.start(t);
+        oscillators.push(oTri, oSin);
+        extraNodes.push(g1, g2);
+        break;
+      }
+      case "sawPad": {
+        const o = ctx.createOscillator();
+        o.type = "sawtooth";
+        o.frequency.setValueAtTime(freq, t);
+        const filter = ctx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(2400, t);
+        filter.Q.setValueAtTime(0.85, t);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(PER_OSC_GAIN * 0.72, t);
+        o.connect(filter);
+        filter.connect(g);
+        g.connect(target);
+        o.start(t);
+        oscillators.push(o);
+        extraNodes.push(filter, g);
+        break;
+      }
+      case "piano": {
+        /** 弦的非谐和近似：fn ≈ n·f·(1 + α·n²) */
+        const inharm = (n: number): number =>
+          freq * n * (1 + 0.00014 * n * n);
+        const partialRel = [0.5, 0.26, 0.14, 0.08, 0.05];
+        const noteGain = ctx.createGain();
+        noteGain.gain.setValueAtTime(0, t);
+        noteGain.gain.linearRampToValueAtTime(0.38, t + 0.003);
+        noteGain.gain.linearRampToValueAtTime(0.2, t + 0.22);
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = "lowpass";
+        const fc = Math.min(7800, Math.max(3200, 4200 + (midi - 48) * 38));
+        filter.frequency.setValueAtTime(fc, t);
+        filter.Q.setValueAtTime(0.55, t);
+
+        noteGain.connect(filter);
+        filter.connect(target);
+
+        const base = PER_OSC_GAIN * 0.55;
+        for (let i = 0; i < partialRel.length; i++) {
+          const n = i + 1;
+          const o = ctx.createOscillator();
+          o.type = "sine";
+          o.frequency.setValueAtTime(inharm(n), t);
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(base * partialRel[i]!, t);
+          o.connect(g);
+          g.connect(noteGain);
+          o.start(t);
+          oscillators.push(o);
+          extraNodes.push(g);
+        }
+        extraNodes.push(noteGain, filter);
+        break;
+      }
+    }
   }
 
   playMidi(midiNotes: number[]): void {
@@ -177,19 +322,11 @@ export class ChordVoice implements AudioSink {
     }
 
     const oscillators: OscillatorNode[] = [];
+    const extraNodes: AudioNode[] = [];
     for (const midi of midiNotes) {
-      const freq = 440 * Math.pow(2, (midi - 69) / 12);
-      const o = ctx.createOscillator();
-      o.type = "triangle";
-      o.frequency.setValueAtTime(freq, t);
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(PER_OSC_GAIN, t);
-      o.connect(g);
-      g.connect(master);
-      o.start(t);
-      oscillators.push(o);
+      this.addNoteForTimbre(ctx, t, midi, master, oscillators, extraNodes);
     }
 
-    this.current = { master, oscillators };
+    this.current = { master, oscillators, extraNodes };
   }
 }

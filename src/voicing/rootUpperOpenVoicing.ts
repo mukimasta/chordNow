@@ -28,6 +28,7 @@ export function createRootUpperOpenVoicingEngine(
         prevMidis,
         chord.rootPc,
         chord.kind,
+        chord.inversion,
         reg,
         w,
       );

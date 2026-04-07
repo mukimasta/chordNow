@@ -5,10 +5,22 @@ export type ChordKind =
   | "majorTriad"
   | "minorTriad"
   | "diminishedTriad"
+  | "augmentedTriad"
+  | "major6"
+  | "minor6"
   | "dominant7"
   | "major7"
   | "minor7"
-  | "halfDiminished7";
+  | "halfDiminished7"
+  | "diminished7"
+  | "major9"
+  | "minor9"
+  | "dominant9"
+  | "sus2Triad"
+  | "sus4Triad"
+  | "majorAdd9"
+  | "minorAdd9"
+  | "diminishedAdd9";
 
 export type DiatonicTriadKind = "major" | "minor" | "diminished";
 
@@ -59,20 +71,66 @@ function diatonicTriadKindForDegree(degree: number): ChordKind {
   return "diminishedTriad";
 }
 
+/** 调内三和弦 + Shift：大↔小；vii°→同根大三 */
+export function effectiveTriadKind(diatonic: ChordKind, shift: boolean): ChordKind {
+  if (!shift) return diatonic;
+  if (diatonic === "majorTriad") return "minorTriad";
+  if (diatonic === "minorTriad") return "majorTriad";
+  if (diatonic === "diminishedTriad") return "majorTriad";
+  return diatonic;
+}
+
+/** 在当前级数上叠调内七度（`.`），依级数 + 有效三和弦性质 */
+function diatonicSeventhKind(degree: number, eff: ChordKind): ChordKind {
+  if (eff === "diminishedTriad") return "halfDiminished7";
+  if (degree === 5 && eff === "majorTriad") return "dominant7";
+  if (eff === "majorTriad") return "major7";
+  if (eff === "minorTriad") return "minor7";
+  return "halfDiminished7";
+}
+
+function sixthFromTriad(eff: ChordKind): ChordKind {
+  if (eff === "majorTriad") return "major6";
+  if (eff === "minorTriad") return "minor6";
+  if (eff === "diminishedTriad") return "minor6";
+  return "major6";
+}
+
+function ninthFromSeventh(base: ChordKind): ChordKind {
+  if (base === "dominant7") return "dominant9";
+  if (base === "major7") return "major9";
+  if (base === "minor7") return "minor9";
+  return "major9";
+}
+
+function add9FromTriad(eff: ChordKind): ChordKind {
+  if (eff === "majorTriad") return "majorAdd9";
+  if (eff === "minorTriad") return "minorAdd9";
+  return "diminishedAdd9";
+}
+
 export interface HarmonyModifiers {
-  /** 同根大三/小三翻转（物理键为 `.`） */
-  semicolon: boolean;
-  /** 属七（物理键为 `,`） */
-  quote: boolean;
-  /** `/` 大七或小七；与 `.` 同按时先翻转再套七 */
+  shift: boolean;
+  /** 调内七和弦（键盘上由物理 `/` 触发；见 `keyboardChordController` 映射） */
+  period: boolean;
+  /** 属七及 n/Shift 组合（键盘上由物理 `.` 触发） */
   slash: boolean;
+  /** `,` 六和弦 */
+  comma: boolean;
+  digit9: boolean;
+  sus4: boolean;
+  sus2: boolean;
+  dim: boolean;
+  aug: boolean;
+  inversion: 0 | 1 | 2;
 }
 
 export interface ResolvedChord {
   rootPc: PitchClass;
   kind: ChordKind;
-  /** Roman + chord symbol, e.g. "V — G", "ii — Dm" */
+  /** Roman + chord symbol */
   label: string;
+  inversion: 0 | 1 | 2;
 }
 
 function chordKindToSymbol(rootPc: number, kind: ChordKind): string {
@@ -84,6 +142,12 @@ function chordKindToSymbol(rootPc: number, kind: ChordKind): string {
       return `${name}m`;
     case "diminishedTriad":
       return `${name}°`;
+    case "augmentedTriad":
+      return `${name}+`;
+    case "major6":
+      return `${name}6`;
+    case "minor6":
+      return `${name}m6`;
     case "dominant7":
       return `${name}7`;
     case "major7":
@@ -92,28 +156,35 @@ function chordKindToSymbol(rootPc: number, kind: ChordKind): string {
       return `${name}m7`;
     case "halfDiminished7":
       return `${name}ø`;
+    case "diminished7":
+      return `${name}dim7`;
+    case "major9":
+      return `${name}maj9`;
+    case "minor9":
+      return `${name}m9`;
+    case "dominant9":
+      return `${name}9`;
+    case "sus2Triad":
+      return `${name}sus2`;
+    case "sus4Triad":
+      return `${name}sus4`;
+    case "majorAdd9":
+      return `${name}add9`;
+    case "minorAdd9":
+      return `${name}madd9`;
+    case "diminishedAdd9":
+      return `${name}°add9`;
   }
 }
 
-/** Roman numeral for scale degree in major (diatonic step label) */
 const ROMAN_DEGREE = ["I", "ii", "iii", "IV", "V", "vi", "vii°"] as const;
 
 function romanNumeral(degree: number): string {
   return ROMAN_DEGREE[degree - 1];
 }
 
-/** 调内三和弦 + 可选 `,` 翻转（与原先仅按 `,` 时一致） */
-function effectiveTriadKind(diatonic: ChordKind, comma: boolean): ChordKind {
-  if (!comma) return diatonic;
-  if (diatonic === "majorTriad") return "minorTriad";
-  if (diatonic === "minorTriad") return "majorTriad";
-  return "majorTriad"; // vii° + , → 同根大三
-}
-
 /**
- * `,` 属七 > `/` 大小七 > `.` 仅三和弦翻转。
- * `/`：在「有效三和弦」上套七——大→maj7，小→m7，减→半减七（ø）。
- * `.`+`/`：先 `.` 翻转再按上式。
+ * 修饰键优先级见 `docs/KEYBOARD.md`。
  */
 export function resolveChord(
   keyPc: number,
@@ -123,33 +194,87 @@ export function resolveChord(
   const rootPc = degreeRootPc(keyPc, degree);
   const diatonic = diatonicTriadKindForDegree(degree);
   const roman = romanNumeral(degree);
+  const inv = mods.inversion;
+  const eff = effectiveTriadKind(diatonic, mods.shift);
 
-  if (mods.quote) {
+  if (mods.dim && mods.slash) {
+    const kind: ChordKind = "diminished7";
+    const label = `${roman} — ${chordKindToSymbol(rootPc, kind)}`;
+    return { rootPc, kind, label, inversion: inv };
+  }
+
+  if (mods.shift && mods.slash && degree === 5) {
+    const kind: ChordKind = "minor7";
+    const label = `${roman} — ${chordKindToSymbol(rootPc, kind)}`;
+    return { rootPc, kind, label, inversion: inv };
+  }
+
+  if (mods.dim && mods.period && !mods.slash) {
+    const kind: ChordKind =
+      degree === 7 ? "halfDiminished7" : "diminished7";
+    const label = `${roman} — ${chordKindToSymbol(rootPc, kind)}`;
+    return { rootPc, kind, label, inversion: inv };
+  }
+
+  if (mods.period && mods.digit9) {
+    const base7 = diatonicSeventhKind(degree, eff);
+    const kind = ninthFromSeventh(base7);
+    const label = `${roman} — ${chordKindToSymbol(rootPc, kind)}`;
+    return { rootPc, kind, label, inversion: inv };
+  }
+
+  /** `/`：属七（大小七，根音为当前级数根音） */
+  if (mods.slash) {
     const kind: ChordKind = "dominant7";
     const label = `${roman} — ${chordKindToSymbol(rootPc, kind)}`;
-    return { rootPc, kind, label };
+    return { rootPc, kind, label, inversion: inv };
   }
 
-  if (mods.slash) {
-    const eff = effectiveTriadKind(diatonic, mods.semicolon);
-    let kind: ChordKind;
-    if (eff === "majorTriad") kind = "major7";
-    else if (eff === "minorTriad") kind = "minor7";
-    else kind = "halfDiminished7";
-
+  if (mods.period) {
+    const kind = diatonicSeventhKind(degree, eff);
     const label = `${roman} — ${chordKindToSymbol(rootPc, kind)}`;
-    return { rootPc, kind, label };
+    return { rootPc, kind, label, inversion: inv };
   }
 
-  if (mods.semicolon && !mods.quote && !mods.slash) {
-    const kind = effectiveTriadKind(diatonic, true);
+  if (mods.comma) {
+    const kind = sixthFromTriad(eff);
     const label = `${roman} — ${chordKindToSymbol(rootPc, kind)}`;
-    return { rootPc, kind, label };
+    return { rootPc, kind, label, inversion: inv };
   }
 
-  const kind = diatonic;
+  if (mods.dim) {
+    const kind: ChordKind = "diminishedTriad";
+    const label = `${roman} — ${chordKindToSymbol(rootPc, kind)}`;
+    return { rootPc, kind, label, inversion: inv };
+  }
+
+  if (mods.aug) {
+    const kind: ChordKind = "augmentedTriad";
+    const label = `${roman} — ${chordKindToSymbol(rootPc, kind)}`;
+    return { rootPc, kind, label, inversion: inv };
+  }
+
+  if (mods.sus4) {
+    const kind: ChordKind = "sus4Triad";
+    const label = `${roman} — ${chordKindToSymbol(rootPc, kind)}`;
+    return { rootPc, kind, label, inversion: inv };
+  }
+
+  if (mods.sus2) {
+    const kind: ChordKind = "sus2Triad";
+    const label = `${roman} — ${chordKindToSymbol(rootPc, kind)}`;
+    return { rootPc, kind, label, inversion: inv };
+  }
+
+  if (mods.digit9) {
+    const kind = add9FromTriad(eff);
+    const label = `${roman} — ${chordKindToSymbol(rootPc, kind)}`;
+    return { rootPc, kind, label, inversion: inv };
+  }
+
+  const kind = eff;
   const label = `${roman} — ${chordKindToSymbol(rootPc, kind)}`;
-  return { rootPc, kind, label };
+  return { rootPc, kind, label, inversion: inv };
 }
 
 /** 12 major keys: value = tonic pitch class */

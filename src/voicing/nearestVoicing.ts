@@ -6,6 +6,11 @@ export const nearestVoicingEngine: VoicingEngine = {
   id: "nearest-register",
   label: "就近 + 参考音区",
   resolve(prev, chord) {
-    return resolveVoicingNearest(prev, chord.rootPc, chord.kind);
+    return resolveVoicingNearest(
+      prev,
+      chord.rootPc,
+      chord.kind,
+      chord.inversion,
+    );
   },
 };
