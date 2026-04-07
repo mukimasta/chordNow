@@ -1,13 +1,13 @@
-/** 参与级数演奏的物理键（含与 I 级完全等价的 KeyK） */
+/** 参与级数演奏的物理键（数字 1–8；8 与 1 同为 I 级） */
 export const ALL_DEGREE_KEY_CODES: readonly string[] = [
-  "KeyA",
-  "KeyK",
-  "KeyS",
-  "KeyD",
-  "KeyF",
-  "KeyG",
-  "KeyH",
-  "KeyJ",
+  "Digit1",
+  "Digit2",
+  "Digit3",
+  "Digit4",
+  "Digit5",
+  "Digit6",
+  "Digit7",
+  "Digit8",
 ];
 
 /** `,` 键：属七（与乐理里 `quote` 对应） */
@@ -19,20 +19,20 @@ export const CODE_SLASH = "Slash";
 
 export function codeToDegree(code: string): number | null {
   switch (code) {
-    case "KeyA":
-    case "KeyK":
+    case "Digit1":
+    case "Digit8":
       return 1;
-    case "KeyS":
+    case "Digit2":
       return 2;
-    case "KeyD":
+    case "Digit3":
       return 3;
-    case "KeyF":
+    case "Digit4":
       return 4;
-    case "KeyG":
+    case "Digit5":
       return 5;
-    case "KeyH":
+    case "Digit6":
       return 6;
-    case "KeyJ":
+    case "Digit7":
       return 7;
     default:
       return null;

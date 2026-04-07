@@ -1,26 +1,25 @@
 import "./style.css";
-import { shouldRouteChordKeys } from "./chordKeyboard";
-import { MAJOR_KEYS, resolveChord, type HarmonyModifiers } from "./harmony";
-import { resolveVoicingNearest } from "./pitches";
-import {
-  CODE_COMMA,
-  CODE_PERIOD,
-  CODE_SLASH,
-  codeToDegree,
-  getActiveDegree,
-  isDegreeCode,
-} from "./keymap";
+import { ChordPlaybackSession, Registry, type ChordResolver, type VoicingEngine } from "./core";
+import { attachKeyboardChordController } from "./input/keyboardChordController";
+import { MAJOR_KEYS } from "./harmony";
+import { majorDiatonicResolver } from "./resolvers/majorDiatonic";
+import { nearestVoicingEngine } from "./voicing/nearestVoicing";
+import { rootUpperOpenVoicingEngine } from "./voicing/rootUpperOpenVoicing";
 import { ChordVoice } from "./voice";
 
-const keysDown = new Set<string>();
-/** 级数键 KeyCode → 按下序号，越大表示越晚按下（用于多键同时按住时选「当前」级数） */
-const degreePressOrder = new Map<string, number>();
-let degreePressSeq = 0;
-const voice = new ChordVoice();
+const resolverRegistry = new Registry<ChordResolver>();
+resolverRegistry.register(majorDiatonicResolver);
 
-let keyTonicPc = 0;
-/** 上一发声和弦的 MIDI，用于就近声部连接 */
-let lastVoicing: number[] | null = null;
+const voicingRegistry = new Registry<VoicingEngine>();
+voicingRegistry.register(nearestVoicingEngine);
+voicingRegistry.register(rootUpperOpenVoicingEngine);
+
+const voice = new ChordVoice();
+const session = new ChordPlaybackSession(
+  resolverRegistry.get(majorDiatonicResolver.id)!,
+  voicingRegistry.get(rootUpperOpenVoicingEngine.id)!,
+  voice,
+);
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
@@ -35,7 +34,7 @@ app.innerHTML = `
     <section class="display" aria-live="polite">
       <p class="chord-line" id="chordLine">—</p>
       <p class="hint-line" id="hintLine"></p>
-      <p class="voice-line" id="voiceLine">声部：就近连接 + 参考音区（减轻越弹越低）；首和弦默认在较低音区</p>
+      <p class="voice-line" id="voiceLine">声部：根音 D2–A3；上层 B3–C5（三和弦为根+三+五，根在上层重复），跨度≤12；上层开放 + 就近；根音不做声部连接</p>
     </section>
     <section class="keys-hint" aria-labelledby="keys-hint-title">
       <h2 class="keys-hint__title" id="keys-hint-title">键盘说明</h2>
@@ -44,40 +43,40 @@ app.innerHTML = `
         <div class="keymap-card__head">
           <span class="keymap-card__label">级数</span>
           <p class="keymap-card__lead">
-            与物理键盘主行一致：<kbd class="kbd-inline">A</kbd> <kbd class="kbd-inline">S</kbd> … <kbd class="kbd-inline">J</kbd> <kbd class="kbd-inline">K</kbd>；最左 <kbd class="kbd-inline">A</kbd> 与最右 <kbd class="kbd-inline">K</kbd> 均为 <strong>I</strong>，中间为 <strong>II → VII</strong>。
+            数字键 <kbd class="kbd-inline">1</kbd>–<kbd class="kbd-inline">7</kbd> 对应 <strong>I</strong>–<strong>VII</strong> 级；<kbd class="kbd-inline">1</kbd> 与 <kbd class="kbd-inline">8</kbd> 均为 <strong>I</strong> 级（完全等价）。
           </p>
         </div>
         <div class="key-strip" role="presentation">
           <div class="key-strip__cell key-strip__cell--i">
-            <kbd class="kbd-key">A</kbd>
+            <kbd class="kbd-key">1</kbd>
             <span class="key-strip__roman">I</span>
           </div>
           <div class="key-strip__cell">
-            <kbd class="kbd-key">S</kbd>
+            <kbd class="kbd-key">2</kbd>
             <span class="key-strip__roman">II</span>
           </div>
           <div class="key-strip__cell">
-            <kbd class="kbd-key">D</kbd>
+            <kbd class="kbd-key">3</kbd>
             <span class="key-strip__roman">III</span>
           </div>
           <div class="key-strip__cell">
-            <kbd class="kbd-key">F</kbd>
+            <kbd class="kbd-key">4</kbd>
             <span class="key-strip__roman">IV</span>
           </div>
           <div class="key-strip__cell">
-            <kbd class="kbd-key">G</kbd>
+            <kbd class="kbd-key">5</kbd>
             <span class="key-strip__roman">V</span>
           </div>
           <div class="key-strip__cell">
-            <kbd class="kbd-key">H</kbd>
+            <kbd class="kbd-key">6</kbd>
             <span class="key-strip__roman">VI</span>
           </div>
           <div class="key-strip__cell">
-            <kbd class="kbd-key">J</kbd>
+            <kbd class="kbd-key">7</kbd>
             <span class="key-strip__roman">VII</span>
           </div>
           <div class="key-strip__cell key-strip__cell--i">
-            <kbd class="kbd-key">K</kbd>
+            <kbd class="kbd-key">8</kbd>
             <span class="key-strip__roman">I</span>
           </div>
         </div>
@@ -123,112 +122,27 @@ for (const k of MAJOR_KEYS) {
 }
 keySelect.value = "0";
 keySelect.addEventListener("change", () => {
-  keyTonicPc = Number(keySelect.value);
-  lastVoicing = null;
+  session.setTonic(Number(keySelect.value));
   document.body.focus();
 });
 
 const chordLine = document.querySelector<HTMLParagraphElement>("#chordLine")!;
-const hintLine = document.querySelector<HTMLParagraphElement>("#hintLine")!;
 
-function updateHint(): void {
-  const comma = keysDown.has(CODE_COMMA);
-  const period = keysDown.has(CODE_PERIOD);
-  const slash = keysDown.has(CODE_SLASH);
-  const parts: string[] = [];
-  if (comma) parts.push(", 属七");
-  if (slash) parts.push("/ 大七或小七(看调内)");
-  if (period) parts.push(". 大小翻转");
-  hintLine.textContent = parts.length ? parts.join(" · ") : "（无修饰）";
-}
-
-function modifiersForPlay(): HarmonyModifiers {
-  return {
-    quote: keysDown.has(CODE_COMMA),
-    semicolon: keysDown.has(CODE_PERIOD),
-    slash: keysDown.has(CODE_SLASH),
-  };
-}
-
-function playDegree(degree: number): void {
-  const mods = modifiersForPlay();
-  const resolved = resolveChord(keyTonicPc, degree, mods);
-  const midis = resolveVoicingNearest(lastVoicing, resolved.rootPc, resolved.kind);
-  lastVoicing = midis;
-  void voice.ensureRunning().then(() => {
-    voice.playMidi(midis);
-    chordLine.textContent = resolved.label;
-  });
-}
-
-function isModifierCode(code: string): boolean {
-  return (
-    code === CODE_COMMA ||
-    code === CODE_PERIOD ||
-    code === CODE_SLASH
-  );
-}
-
-function shouldHandle(ev: KeyboardEvent): boolean {
-  return isDegreeCode(ev.code) || isModifierCode(ev.code);
-}
-
-window.addEventListener(
-  "keydown",
-  (ev) => {
-    if (!shouldRouteChordKeys(ev)) return;
-    if (!shouldHandle(ev)) return;
-    ev.preventDefault();
-    if (keysDown.has(ev.code)) return;
-    keysDown.add(ev.code);
-    const deg = codeToDegree(ev.code);
-    if (deg !== null) {
-      degreePressSeq += 1;
-      degreePressOrder.set(ev.code, degreePressSeq);
-    }
-    updateHint();
-
-    if (deg !== null) {
-      playDegree(deg);
-    } else if (isModifierCode(ev.code)) {
-      const held = getActiveDegree(keysDown, degreePressOrder);
-      if (held !== null) playDegree(held);
-    }
+attachKeyboardChordController({
+  session,
+  onChordLabel: (label) => {
+    chordLine.textContent = label;
   },
-  true,
-);
-
-window.addEventListener(
-  "keyup",
-  (ev) => {
-    if (!shouldRouteChordKeys(ev)) return;
-    if (!shouldHandle(ev)) return;
-    ev.preventDefault();
-    keysDown.delete(ev.code);
-    if (isDegreeCode(ev.code)) {
-      degreePressOrder.delete(ev.code);
-    }
-    updateHint();
-
-    if (isDegreeCode(ev.code)) {
-      const still = getActiveDegree(keysDown, degreePressOrder);
-      if (still !== null) {
-        playDegree(still);
-      } else {
-        voice.stop();
-        chordLine.textContent = "—";
-      }
-    } else if (isModifierCode(ev.code)) {
-      const held = getActiveDegree(keysDown, degreePressOrder);
-      if (held !== null) playDegree(held);
-    }
+  onIdleChordLine: () => {
+    chordLine.textContent = "—";
   },
-  true,
-);
+  onHint: (text) => {
+    document.querySelector<HTMLParagraphElement>("#hintLine")!.textContent =
+      text;
+  },
+});
 
 document.body.focus();
 window.addEventListener("click", () => {
-  void voice.ensureRunning();
+  void session.ensureAudio();
 });
-
-updateHint();
